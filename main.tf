@@ -1,18 +1,22 @@
-# This triggers the SECRETS scanner (Hardcoded API Key)
-locals {
-  test_metadata = {
-    api_key = "XVGYUhyauety23899ajjjagGGGG"
-  }
-}
-
-# This triggers the IAC scanner (Missing Public Access Block & Lifecycle)
 resource "aws_s3_bucket" "test_bucket" {
   bucket = "cortex-repro-bucket-2026"
-  
-  # This specific line triggers the "ACL grants READ permission" rule
-  acl    = "public-read" 
 }
 
-# NOTE: We have EXCLUDED the 'aws_s3_bucket_public_access_block' 
-# and 'aws_s3_bucket_lifecycle_configuration' blocks. 
-# Their absence is what causes the IaC misconfiguration findings.
+resource "aws_s3_bucket_public_access_block" "public_access" {
+  bucket = aws_s3_bucket.test_bucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
+  bucket = aws_s3_bucket.test_bucket.id
+  rule {
+    id     = "expire-old-objects"
+    status = "Enabled"
+    expiration {
+      days = 90
+    }
+  }
+}
